@@ -1,0 +1,49 @@
+en:
+  js:
+    npn_vimeo_upload:
+      upload:
+        video: "Upload a video"
+        vimeo: "Upload to Vimeo"
+        size_help: "Up to %{max_mb} MB."
+        pause: "Pause"
+        resume: "Resume"
+        cancel: "Cancel"
+        cancel_confirm: "This will stop the upload and delete the video from Vimeo. Are you sure?"
+      details:
+        title: "Title"
+        description: "Description"
+        view_privacy: "Who can watch"
+        view_privacy_help: "Unlisted and Hide from Vimeo require a paid Vimeo plan."
+        embed_privacy: "Embedding"
+        view:
+          anybody: "Public"
+          unlisted: "Unlisted"
+          disable: "Hide from Vimeo"
+        embed:
+          public: "Public"
+          private: "Private"
+      status:
+        uploading: "Uploading"
+        paused: "Paused"
+        transcoding: "Processing video on Vimeo"
+        cancelling: "Cancelling"
+        error: "Error uploading video"
+      validation:
+        video:
+          required: "Select a video file."
+          invalid: "Select a valid video file."
+          too_large: "That video is larger than the %{max_mb} MB limit."
+        title:
+          required: "Enter a title."
+      errors:
+        invalid_file: "Missing or invalid file. Expected a video file."
+        invalid_json_response: "Invalid response from Vimeo."
+        network_error: "Network error during upload."
+        upload_request_failed: "Upload request failed."
+        upload_retry_timeout: "Upload retry timed out. Please check your connection and try again."
+        vimeo_privacy_view_unavailable: "NPN's Vimeo plan does not allow this privacy option. Choose Public."
+        vimeo_transcoding_failed: "Vimeo could not process this video."
+        vimeo_transcoding_timeout: "Timed out waiting for Vimeo to process the video. It may still appear on Vimeo later."
+        vimeo_upload_failed: "Vimeo upload failed."
+        vimeo_upload_link_missing: "Vimeo did not return an upload link."
+        vimeo_video_uri_missing: "No Vimeo video is available."

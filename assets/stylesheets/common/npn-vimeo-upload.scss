@@ -1,0 +1,47 @@
+.d-icon-npn-video-upload {
+  font-size: var(--font-up-2);
+  top: 1px;
+}
+
+.npn-vimeo-upload-modal {
+  .d-modal__footer {
+    gap: 1rem;
+  }
+
+  @keyframes npn-vimeo-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .npn-vimeo-upload-status {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35em;
+  }
+
+  .npn-vimeo-upload-status-line {
+    animation: npn-vimeo-fade-in 0.2s ease-out;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+  }
+
+  .npn-vimeo-upload-error {
+    color: var(--danger);
+  }
+
+  .spinner {
+    height: 10px;
+    width: 10px;
+    margin: 0;
+    display: inline-block;
+    flex: 0 0 auto;
+  }
+}

@@ -1,10 +1,12 @@
 en:
   site_settings:
-    npn_vimeo_upload_enabled: "Let members in the allowed groups upload videos to NPN's Vimeo account from the composer."
+    npn_vimeo_upload_enabled: "Show a video upload button in the composer that uploads to NPN's Vimeo account, for members in the allowed groups."
     npn_vimeo_upload_access_token: "Vimeo personal access token for NPN's account (scopes: public, upload, edit, delete). Stored on the server only; never sent to browsers."
-    npn_vimeo_upload_allowed_groups: "Groups allowed to upload to Vimeo. Leave empty to allow no one. Enforced on the server, independent of the theme component's button setting."
+    npn_vimeo_upload_allowed_groups: "Groups that see the upload button and may upload. Leave empty to allow no one."
     npn_vimeo_upload_max_size_mb: "Largest video a member can upload, in MB."
     npn_vimeo_upload_daily_limit: "Maximum Vimeo uploads per member per day (admins are exempt)."
+    npn_vimeo_upload_default_view_privacy: "Default Vimeo view privacy in the upload form. Unlisted and Hide from Vimeo need a paid Vimeo plan."
+    npn_vimeo_upload_default_embed_privacy: "Default Vimeo embed privacy in the upload form."
   npn_vimeo_upload:
     errors:
       not_configured: "Vimeo uploads are not configured."

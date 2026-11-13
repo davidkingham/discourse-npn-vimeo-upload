@@ -110,8 +110,7 @@ module ::NpnVimeoUpload
     end
 
     def ensure_allowed
-      allowed = SiteSetting.npn_vimeo_upload_allowed_groups_map
-      raise Discourse::InvalidAccess if allowed.empty? || !current_user.in_any_groups?(allowed)
+      raise Discourse::InvalidAccess unless current_user.can_upload_to_npn_vimeo?
     end
 
     def ensure_configured
