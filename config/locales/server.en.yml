@@ -1,0 +1,14 @@
+en:
+  site_settings:
+    npn_vimeo_upload_enabled: "Let members in the allowed groups upload videos to NPN's Vimeo account from the composer."
+    npn_vimeo_upload_access_token: "Vimeo personal access token for NPN's account (scopes: public, upload, edit, delete). Stored on the server only; never sent to browsers."
+    npn_vimeo_upload_allowed_groups: "Groups allowed to upload to Vimeo. Leave empty to allow no one. Enforced on the server, independent of the theme component's button setting."
+    npn_vimeo_upload_max_size_mb: "Largest video a member can upload, in MB."
+    npn_vimeo_upload_daily_limit: "Maximum Vimeo uploads per member per day (admins are exempt)."
+  npn_vimeo_upload:
+    errors:
+      not_configured: "Vimeo uploads are not configured."
+      too_large: "That video is larger than the %{max_mb} MB limit."
+      invalid_size: "Invalid file size."
+      vimeo_failed: "Vimeo rejected the request: %{message}"
+      vimeo_unreachable: "Could not reach Vimeo. Please try again."

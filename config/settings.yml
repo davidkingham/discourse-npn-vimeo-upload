@@ -1,0 +1,18 @@
+plugins:
+  npn_vimeo_upload_enabled:
+    default: false
+  npn_vimeo_upload_access_token:
+    default: ""
+    secret: true
+  npn_vimeo_upload_allowed_groups:
+    type: group_list
+    list_type: compact
+    default: ""
+    allow_any: false
+    refresh: true
+  npn_vimeo_upload_max_size_mb:
+    default: 5120
+    min: 1
+  npn_vimeo_upload_daily_limit:
+    default: 10
+    min: 1
