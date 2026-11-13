@@ -25,12 +25,9 @@ export default class VimeoUploadClient extends ResumableUploadClient {
     super({ ...VimeoUploadClient.defaults, ...options });
 
     this.accept = "application/vnd.vimeo.*+json;version=3.4";
+    this.videoId = null;
     this.videoUri = null;
     this.videoLink = null;
-  }
-
-  get videoId() {
-    return this.videoUri?.split("/").pop();
   }
 
   getUploadMethod() {
@@ -62,6 +59,7 @@ export default class VimeoUploadClient extends ResumableUploadClient {
     }
 
     this.url = response.upload_link;
+    this.videoId = response.id;
     this.videoUri = response.uri;
     this.videoLink = response.link;
 

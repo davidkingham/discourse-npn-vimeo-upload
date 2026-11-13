@@ -37,8 +37,15 @@ and the Vimeo calls that need the token moved to the server.
    - `npn_vimeo_upload_allowed_groups`: who sees the button and may upload (empty = no one)
    - `npn_vimeo_upload_max_size_mb` (default 5120) and `npn_vimeo_upload_daily_limit`
      (default 10, admins exempt)
-   - `npn_vimeo_upload_view_privacy` / `_embed_privacy`: privacy for every uploaded video.
-     Members never see these. Unlisted and Hide from Vimeo need a paid Vimeo plan.
+   - Privacy for every uploaded video (members never see these). The defaults make videos
+     watchable only where they're embedded on NPN:
+     - `npn_vimeo_upload_view_privacy`: `disable` (Hide from Vimeo). Needs a paid plan.
+     - `npn_vimeo_upload_embed_privacy`: `whitelist` (only the domains below). `private` blocks
+       embedding everywhere, NPN included.
+     - `npn_vimeo_upload_embed_domains`: leave empty to use this site's domain.
+
+   When a post links to one of these videos, the plugin tells Vimeo the request comes from
+   NPN, so the player still shows up in the post.
    - `npn_vimeo_upload_enabled`: on
 
 If you installed the old Video Upload theme component, remove it so there aren't two video

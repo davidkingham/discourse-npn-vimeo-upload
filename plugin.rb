@@ -22,6 +22,10 @@ register_svg_icon "play"
 
 after_initialize do
   require_relative "lib/npn_vimeo_upload/vimeo_api"
+  require_relative "lib/npn_vimeo_upload/vimeo_onebox_referer"
+
+  # Applies to every Vimeo link on the site; harmless for public videos.
+  ::Onebox::Engine::VimeoOnebox.prepend(::NpnVimeoUpload::VimeoOneboxReferer)
 
   add_to_class(:user, :can_upload_to_npn_vimeo?) do
     allowed = SiteSetting.npn_vimeo_upload_allowed_groups_map

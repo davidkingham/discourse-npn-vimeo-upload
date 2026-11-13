@@ -19,15 +19,20 @@ plugins:
     default: 10
     min: 1
   npn_vimeo_upload_view_privacy:
-    default: anybody
+    default: disable
     type: enum
     choices:
       - anybody
       - unlisted
       - disable
   npn_vimeo_upload_embed_privacy:
-    default: public
+    default: whitelist
     type: enum
     choices:
+      - whitelist
       - public
       - private
+  npn_vimeo_upload_embed_domains:
+    type: list
+    list_type: simple
+    default: ""

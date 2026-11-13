@@ -45,7 +45,13 @@ module ::NpnVimeoUpload
     end
 
     def video(id)
-      request(:get, "/videos/#{id}", query: { fields: "uri,link,transcode.status" })
+      request(:get, "/videos/#{id}", query: { fields: "uri,link,status,transcode.status" })
+    end
+
+    # Lets the video be embedded on this domain when embed privacy is
+    # "whitelist" (Vimeo's "specific domains" option).
+    def allow_embed_domain(id, domain)
+      request(:put, "/videos/#{id}/privacy/domains/#{ERB::Util.url_encode(domain)}")
     end
 
     def delete_video(id)

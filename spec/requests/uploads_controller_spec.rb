@@ -15,6 +15,12 @@ RSpec.describe NpnVimeoUpload::UploadsController do
     SiteSetting.npn_vimeo_upload_allowed_groups = group.id.to_s
   end
 
+  let!(:domain_stub) do
+    stub_request(:put, %r{https://api.vimeo.com/videos/\d+/privacy/domains/.+}).to_return(
+      status: 204,
+    )
+  end
+
   def stub_create(status: 200, body: nil)
     stub_request(:post, "https://api.vimeo.com/me/videos").with(
       headers: {
@@ -63,6 +69,7 @@ RSpec.describe NpnVimeoUpload::UploadsController do
 
       expect(response.status).to eq(200)
       expect(response.parsed_body).to eq(
+        "id" => "42",
         "uri" => "/videos/42",
         "link" => "https://vimeo.com/42",
         "upload_link" => upload_link,
@@ -73,7 +80,7 @@ RSpec.describe NpnVimeoUpload::UploadsController do
           body = JSON.parse(req.body)
           body["upload"] == { "approach" => "tus", "size" => 100 } && body["name"] == "Aspens" &&
             body["description"] == "Uploaded by @#{member.username}" &&
-            body["privacy"] == { "view" => "anybody", "embed" => "public" }
+            body["privacy"] == { "view" => "disable", "embed" => "whitelist" }
         end,
       ).to have_been_requested
     end
@@ -96,6 +103,71 @@ RSpec.describe NpnVimeoUpload::UploadsController do
           JSON.parse(req.body)["privacy"] == { "view" => "unlisted", "embed" => "private" }
         end,
       ).to have_been_requested
+    end
+
+    it "allows embedding on this site's domain by default" do
+      stub_create
+      sign_in(member)
+      post "/npn-vimeo/uploads.json", params: { size: 100 }
+
+      expect(response.status).to eq(200)
+      expect(
+        a_request(
+          :put,
+          "https://api.vimeo.com/videos/42/privacy/domains/#{Discourse.current_hostname}",
+        ),
+      ).to have_been_made.once
+    end
+
+    it "allows embedding on the configured domains instead" do
+      SiteSetting.npn_vimeo_upload_embed_domains = "community.example.org|example.org"
+      stub_create
+      sign_in(member)
+      post "/npn-vimeo/uploads.json", params: { size: 100 }
+
+      expect(
+        a_request(:put, "https://api.vimeo.com/videos/42/privacy/domains/community.example.org"),
+      ).to have_been_made.once
+      expect(
+        a_request(:put, "https://api.vimeo.com/videos/42/privacy/domains/example.org"),
+      ).to have_been_made.once
+    end
+
+    it "skips the domain list when embedding isn't restricted" do
+      SiteSetting.npn_vimeo_upload_embed_privacy = "public"
+      stub_create
+      sign_in(member)
+      post "/npn-vimeo/uploads.json", params: { size: 100 }
+
+      expect(response.status).to eq(200)
+      expect(domain_stub).not_to have_been_requested
+    end
+
+    it "still starts the upload if allowing the domain fails" do
+      domain_stub.to_return(status: 403, body: { error: "no edit scope" }.to_json)
+      stub_create
+      sign_in(member)
+      post "/npn-vimeo/uploads.json", params: { size: 100 }
+
+      expect(response.status).to eq(200)
+    end
+
+    it "handles unlisted video URIs" do
+      stub_create(
+        body: {
+          uri: "/videos/42:abc123",
+          link: "https://vimeo.com/42/abc123",
+          upload: {
+            upload_link: upload_link,
+          },
+        },
+      )
+      sign_in(member)
+      post "/npn-vimeo/uploads.json", params: { size: 100 }
+
+      expect(response.status).to eq(200)
+      expect(response.parsed_body["id"]).to eq("42")
+      expect(response.parsed_body["link"]).to eq("https://vimeo.com/42/abc123")
     end
 
     it "enforces the size limit" do
@@ -166,6 +238,25 @@ RSpec.describe NpnVimeoUpload::UploadsController do
       get "/npn-vimeo/uploads/42.json"
       expect(response.status).to eq(200)
       expect(response.parsed_body["transcode_status"]).to eq("complete")
+    end
+
+    {
+      { "status" => "available" } => "complete",
+      { "status" => "transcoding", "transcode" => { "status" => "in_progress" } } => "in_progress",
+      { "status" => "transcode_starting" } => "in_progress",
+      { "status" => "transcoding_error" } => "error",
+      { "status" => "quota_exceeded" } => "error",
+      { "transcode" => { "status" => "error" } } => "error",
+      {} => "in_progress",
+    }.each do |vimeo_fields, expected|
+      it "reports #{expected} for #{vimeo_fields.to_json}" do
+        stub_request(:get, %r{https://api.vimeo.com/videos/42}).to_return(
+          status: 200,
+          body: { uri: "/videos/42" }.merge(vimeo_fields).to_json,
+        )
+        get "/npn-vimeo/uploads/42.json"
+        expect(response.parsed_body["transcode_status"]).to eq(expected)
+      end
     end
 
     it "hides other members' videos" do

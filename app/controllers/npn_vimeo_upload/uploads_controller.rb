@@ -49,7 +49,8 @@ module ::NpnVimeoUpload
         )
 
       uri = result["uri"].to_s
-      video_id = uri[%r{\A/videos/(\d+)\z}, 1]
+      # Unlisted videos come back as "/videos/123:abcdef".
+      video_id = uri[%r{\A/videos/(\d+)(?::\w+)?\z}, 1]
       upload_link = result.dig("upload", "upload_link")
 
       if video_id.blank? || upload_link.blank?
@@ -62,7 +63,9 @@ module ::NpnVimeoUpload
         { "user_id" => current_user.id, "created_at" => Time.zone.now.iso8601 },
       )
 
-      render json: { uri: uri, link: result["link"], upload_link: upload_link }
+      allow_embed_domains(video_id) if SiteSetting.npn_vimeo_upload_embed_privacy == "whitelist"
+
+      render json: { id: video_id, uri: uri, link: result["link"], upload_link: upload_link }
     rescue VimeoApi::Error => e
       render_vimeo_error(e)
     end
@@ -73,7 +76,7 @@ module ::NpnVimeoUpload
       render json: {
                uri: result["uri"],
                link: result["link"],
-               transcode_status: result.dig("transcode", "status"),
+               transcode_status: processing_status(result),
              }
     rescue VimeoApi::Error => e
       render_vimeo_error(e)
@@ -102,6 +105,40 @@ module ::NpnVimeoUpload
 
     def vimeo
       @vimeo ||= VimeoApi.new
+    end
+
+    VIDEO_FAILED_STATUSES = %w[
+      uploading_error
+      transcoding_error
+      quota_exceeded
+      total_cap_exceeded
+    ].freeze
+
+    # "complete", "error", or "in_progress". Uses the video's overall status
+    # as well as transcode.status, since the latter can be missing.
+    def processing_status(result)
+      return "error" if VIDEO_FAILED_STATUSES.include?(result["status"])
+      return "complete" if result["status"] == "available"
+      transcode = result.dig("transcode", "status")
+      return transcode if %w[complete error].include?(transcode)
+      "in_progress"
+    end
+
+    def embed_domains
+      domains = SiteSetting.npn_vimeo_upload_embed_domains.split("|").map(&:strip).reject(&:blank?)
+      domains.presence || [Discourse.current_hostname]
+    end
+
+    # A failure here doesn't stop the upload; it's logged so an admin can fix
+    # the domain list (or the token's "edit" scope) and re-save on Vimeo.
+    def allow_embed_domains(video_id)
+      embed_domains.each do |domain|
+        vimeo.allow_embed_domain(video_id, domain)
+      rescue VimeoApi::Error => e
+        Rails.logger.warn(
+          "[npn-vimeo-upload] Could not allow embedding of video #{video_id} on #{domain}: #{e.status} #{e.message}",
+        )
+      end
     end
 
     def ensure_allowed

@@ -5,8 +5,9 @@ en:
     npn_vimeo_upload_allowed_groups: "Groups that see the upload button and may upload. Leave empty to allow no one."
     npn_vimeo_upload_max_size_mb: "Largest video a member can upload, in MB."
     npn_vimeo_upload_daily_limit: "Maximum Vimeo uploads per member per day (admins are exempt)."
-    npn_vimeo_upload_view_privacy: "Who can watch uploaded videos on Vimeo. Members never see this. Unlisted and Hide from Vimeo need a paid Vimeo plan."
-    npn_vimeo_upload_embed_privacy: "Whether uploaded videos can be embedded outside NPN. Members never see this."
+    npn_vimeo_upload_view_privacy: "Who can watch uploaded videos on vimeo.com itself. 'disable' (Hide from Vimeo) means they can only be watched where they're embedded. Unlisted and Hide from Vimeo need a paid Vimeo plan. Members never see this."
+    npn_vimeo_upload_embed_privacy: "Where uploaded videos can be embedded. 'whitelist' = only the domains below (recommended); 'public' = any site; 'private' = nowhere, not even NPN. Members never see this."
+    npn_vimeo_upload_embed_domains: "Domains allowed to embed uploaded videos when embed privacy is 'whitelist'. Leave empty to use this site's domain."
   npn_vimeo_upload:
     errors:
       not_configured: "Video uploads aren't set up yet. Please let staff know."
