@@ -144,7 +144,7 @@ export default class VimeoUploadClient extends ResumableUploadClient {
 
   async waitForTranscode({
     interval = 5000,
-    timeout = 10 * 60 * 1000,
+    timeout = 60 * 60 * 1000,
     shouldCancel = null,
   } = {}) {
     const startedAt = Date.now();

@@ -27,7 +27,8 @@ and the Vimeo calls that need the token moved to the server.
 ## Setup
 
 1. On NPN's Vimeo account, create an app at https://developer.vimeo.com/apps and generate a
-   personal access token with the scopes **public, upload, edit, delete**.
+   personal access token. Choose **Authenticated (you)** and the scopes **public, private, upload,
+   edit, delete**. "Private" is needed to check processing on unlisted or hidden videos.
 2. Add the plugin to `app.yml` and rebuild:
    `git clone https://github.com/davidkingham/discourse-npn-vimeo-upload.git`
 3. In Admin → Settings, search for `npn_vimeo_upload`:
