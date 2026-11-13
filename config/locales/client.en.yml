@@ -4,17 +4,21 @@ en:
       upload:
         video: "Upload a video"
         submit: "Upload"
-        size_help: "Up to %{max}."
+        close: "Close"
+        remove: "Remove this video"
+        drop_title: "Drag a video here"
+        drop_browse: "or click to choose one"
+        size_help: "Up to %{max}"
         pause: "Pause"
         resume: "Resume"
         cancel: "Cancel"
         cancel_confirm: "Stop this upload? The video will be removed."
       details:
-        video: "Video"
         title: "Title"
       status:
         uploading: "Uploading"
         paused: "Paused"
+        progress: "%{done} of %{total}"
         transcoding: "Getting your video ready. Larger videos can take a few minutes."
         cancelling: "Cancelling"
         error: "Upload failed"
@@ -23,6 +27,7 @@ en:
           required: "Choose a video."
           invalid: "That file isn't a video."
           too_large: "That video is too large. The limit is %{max}."
+          one_at_a_time: "Please drop one video at a time."
         title:
           required: "Enter a title."
       errors:

@@ -12,6 +12,9 @@ export default apiInitializer((api) => {
   api.onToolbarCreate((toolbar) => {
     toolbar.addButton({
       id: "npn-vimeo-upload",
+      // Own class so it can't pick up the upload form's .npn-vimeo-upload
+      // styles (core uses the id as the class by default).
+      className: "npn-vimeo-upload-button",
       group: "insertions",
       icon: "npn-video-upload",
       title: "npn_vimeo_upload.upload.video",

@@ -16,7 +16,7 @@ end
 require_relative "lib/npn_vimeo_upload/engine"
 
 register_asset "stylesheets/common/npn-vimeo-upload.scss"
-register_svg_icon "fab-vimeo-v"
+register_svg_icon "file-video"
 register_svg_icon "pause"
 register_svg_icon "play"
 

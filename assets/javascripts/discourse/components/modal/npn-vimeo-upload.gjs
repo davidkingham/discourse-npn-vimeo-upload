@@ -1,14 +1,16 @@
 import Component from "@glimmer/component";
-import { cached, tracked } from "@glimmer/tracking";
-import { action, getProperties } from "@ember/object";
+import { tracked } from "@glimmer/tracking";
+import { on } from "@ember/modifier";
+import { action } from "@ember/object";
 import { service } from "@ember/service";
 // Old import paths kept on purpose: newer core shims them, older core only
 // has these, so the plugin works on either.
 /* eslint-disable discourse/ui-kit-imports */
 import DButton from "discourse/components/d-button";
 import DModal from "discourse/components/d-modal";
+import concatClass from "discourse/helpers/concat-class";
+import icon from "discourse/helpers/d-icon";
 /* eslint-enable discourse/ui-kit-imports */
-import Form from "discourse/components/form";
 import { i18n } from "discourse-i18n";
 import {
   CancelledError,
@@ -17,10 +19,29 @@ import {
 import VimeoUploadClient from "../../lib/npn-vimeo-upload/vimeo-client";
 
 const STATUS_POLLING_INTERVAL_MILLIS = 10000;
-const FORM_FIELDS = ["title", "video"];
+const TITLE_MAX_LENGTH = 128;
 
 function t(key, opts) {
   return i18n(`npn_vimeo_upload.${key}`, opts);
+}
+
+export function formatBytes(bytes) {
+  if (bytes >= 1024 ** 3) {
+    // "5 GB", "1.2 GB": one decimal, trailing ".0" dropped.
+    return `${Number((bytes / 1024 ** 3).toFixed(1))} GB`;
+  }
+  if (bytes >= 1024 ** 2) {
+    return `${Math.round(bytes / 1024 ** 2)} MB`;
+  }
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function titleFromFileName(name) {
+  return name
+    .replace(/\.[^.]+$/, "")
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .slice(0, TITLE_MAX_LENGTH);
 }
 
 export default class NpnVimeoUpload extends Component {
@@ -28,19 +49,46 @@ export default class NpnVimeoUpload extends Component {
   @service dialog;
   @service siteSettings;
 
+  @tracked file = null;
+  @tracked title = "";
+  @tracked fileError = null;
+  @tracked isDragging = false;
+
   @tracked uploadProgress = 0;
+  @tracked uploadedBytes = 0;
   @tracked isUploading = false;
   @tracked isProcessing = false;
   @tracked isPaused = false;
-  @tracked uploadError = null;
   @tracked isCancelling = false;
+  @tracked uploadError = null;
 
   uploader = null;
   cancelRequested = false;
+  dragDepth = 0;
+  autoTitle = "";
 
-  @cached
-  get formData() {
-    return getProperties(this, ...FORM_FIELDS);
+  constructor() {
+    super(...arguments);
+    // Listen on the whole window while the modal is open: a file dropped
+    // anywhere (header, footer, backdrop) is taken as the video instead of
+    // the browser navigating away to play it, or the composer behind the
+    // modal attaching it to the post.
+    window.addEventListener("dragenter", this.onDragEnter, true);
+    window.addEventListener("dragover", this.onDragOver, true);
+    window.addEventListener("dragleave", this.onDragLeave, true);
+    window.addEventListener("drop", this.onDrop, true);
+  }
+
+  willDestroy() {
+    super.willDestroy(...arguments);
+    window.removeEventListener("dragenter", this.onDragEnter, true);
+    window.removeEventListener("dragover", this.onDragOver, true);
+    window.removeEventListener("dragleave", this.onDragLeave, true);
+    window.removeEventListener("drop", this.onDrop, true);
+  }
+
+  isFileDrag(event) {
+    return [...(event.dataTransfer?.types ?? [])].includes("Files");
   }
 
   get maxSizeMb() {
@@ -48,34 +96,33 @@ export default class NpnVimeoUpload extends Component {
   }
 
   get maxSizeLabel() {
-    const mb = this.maxSizeMb;
-    return mb >= 1024 && mb % 1024 === 0 ? `${mb / 1024} GB` : `${mb} MB`;
+    return formatBytes(this.maxSizeMb * 1024 * 1024);
   }
 
-  get hasStatus() {
-    return (
-      this.isUploading ||
-      this.isProcessing ||
-      this.isPaused ||
-      this.isCancelling ||
-      this.uploadError
-    );
-  }
-
-  get uploadDisabled() {
+  get isBusy() {
     return this.isUploading || this.isProcessing;
   }
 
+  get canSubmit() {
+    return this.file && this.title.trim() && !this.isBusy;
+  }
+
+  get fileSizeLabel() {
+    return this.file ? formatBytes(this.file.size) : "";
+  }
+
+  get progressLabel() {
+    return t("status.progress", {
+      done: formatBytes(this.uploadedBytes),
+      total: this.fileSizeLabel,
+    });
+  }
+
   get isModalDismissable() {
-    return !this.uploadDisabled || this.isPaused;
+    return !this.isBusy || this.isPaused;
   }
 
-  @action
-  registerApi(api) {
-    this.formApi = api;
-  }
-
-  fileError(file) {
+  validateFile(file) {
     if (!file.type.startsWith("video/")) {
       return t("validation.video.invalid");
     }
@@ -85,84 +132,112 @@ export default class NpnVimeoUpload extends Component {
     return null;
   }
 
-  @action
-  validateVideoFile(event) {
-    const input = event.target;
-    const file = input.files[0];
-
-    if (!file) {
-      this.formApi.set("video", null);
+  selectFile(file) {
+    if (!file || this.isBusy) {
       return;
     }
 
-    const message = this.fileError(file);
-    if (message) {
-      this.formApi.set("video", null);
-      input.value = "";
-      this.formApi.addError("video", { title: t("upload.video"), message });
-      return;
-    }
-
-    this.formApi.removeError("title");
-    this.formApi.removeError("video");
-    this.formApi.set("title", file.name);
-    this.formApi.set("video", file);
-  }
-
-  @action
-  validateUpload(data, { addError }) {
-    if (!data.video) {
-      addError("video", {
-        title: t("upload.video"),
-        message: t("validation.video.required"),
-      });
-    } else {
-      const message = this.fileError(data.video);
-      if (message) {
-        addError("video", { title: t("upload.video"), message });
-      }
-    }
-
-    if (!data.title) {
-      addError("title", {
-        title: t("details.title"),
-        message: t("validation.title.required"),
-      });
-    }
-  }
-
-  updateProgress(data) {
-    this.uploadProgress = Math.floor((data.loaded / data.total) * 100);
-  }
-
-  startUpload() {
-    this.uploadProgress = 0;
-    this.isUploading = true;
-    this.isProcessing = false;
-    this.isPaused = false;
     this.uploadError = null;
+    this.fileError = this.validateFile(file);
+
+    if (this.fileError) {
+      return;
+    }
+
+    // Keep a title the member already typed when they swap the file.
+    if (!this.title.trim() || this.title === this.autoTitle) {
+      this.title = titleFromFileName(file.name);
+      this.autoTitle = this.title;
+    }
+    this.file = file;
   }
 
-  startProcessing() {
-    this.uploadProgress = 0;
-    this.isUploading = false;
-    this.isProcessing = true;
+  @action
+  onFileInput(event) {
+    this.selectFile(event.target.files[0]);
+    // Allow choosing the same file again after removing it.
+    event.target.value = "";
   }
 
-  failUpload(error) {
-    this.uploadProgress = 0;
-    this.isUploading = false;
-    this.isProcessing = false;
-    this.uploadError = uploadErrorMessage(error);
+  @action
+  removeFile() {
+    this.file = null;
+    this.fileError = null;
+    this.uploadError = null;
+    if (this.title === this.autoTitle) {
+      this.title = "";
+    }
+  }
+
+  @action
+  onTitleInput(event) {
+    this.title = event.target.value;
+  }
+
+  // dragenter/dragleave fire for every child element, so count depth to know
+  // when the pointer has really left the zone.
+  @action
+  onDragEnter(event) {
+    if (!this.isFileDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragDepth++;
+    this.isDragging = true;
+  }
+
+  @action
+  onDragOver(event) {
+    if (!this.isFileDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = this.isBusy ? "none" : "copy";
+  }
+
+  @action
+  onDragLeave(event) {
+    if (!this.isFileDrag(event)) {
+      return;
+    }
+    this.dragDepth = Math.max(0, this.dragDepth - 1);
+    if (this.dragDepth === 0) {
+      this.isDragging = false;
+    }
+  }
+
+  @action
+  onDrop(event) {
+    if (!this.isFileDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragDepth = 0;
+    this.isDragging = false;
+
+    const files = [...(event.dataTransfer?.files ?? [])];
+    if (files.length > 1) {
+      this.fileError = t("validation.video.one_at_a_time");
+      return;
+    }
+    this.selectFile(files[0]);
+  }
+
+  updateProgress({ loaded, total }) {
+    this.uploadedBytes = Math.min(loaded, total);
+    this.uploadProgress = Math.floor((loaded / total) * 100);
   }
 
   resetUpload() {
     this.uploadProgress = 0;
+    this.uploadedBytes = 0;
     this.isUploading = false;
     this.isProcessing = false;
     this.isPaused = false;
     this.isCancelling = false;
-    this.uploadError = null;
     this.cancelRequested = false;
     this.uploader = null;
   }
@@ -188,29 +263,29 @@ export default class NpnVimeoUpload extends Component {
     const confirmed = await this.dialog.yesNoConfirm({
       message: t("upload.cancel_confirm"),
     });
-
     if (!confirmed) {
       return;
     }
 
     this.isCancelling = true;
     this.cancelRequested = true;
-
     this.uploader?.cancel();
   }
 
   @action
-  submitUpload() {
-    this.formApi?.submit();
-  }
+  async submit(event) {
+    event?.preventDefault();
+    if (!this.canSubmit) {
+      return;
+    }
 
-  @action
-  async handleSubmit(data) {
-    this.startUpload();
+    this.resetUpload();
+    this.uploadError = null;
+    this.isUploading = true;
 
     const uploader = new VimeoUploadClient({
-      file: data.video,
-      metadata: { name: data.title },
+      file: this.file,
+      metadata: { name: this.title.trim() },
       onProgress: (progress) => this.updateProgress(progress),
     });
     this.uploader = uploader;
@@ -222,7 +297,8 @@ export default class NpnVimeoUpload extends Component {
         throw new CancelledError();
       }
 
-      this.startProcessing();
+      this.isUploading = false;
+      this.isProcessing = true;
 
       await uploader.waitForTranscode({
         interval: STATUS_POLLING_INTERVAL_MILLIS,
@@ -244,7 +320,8 @@ export default class NpnVimeoUpload extends Component {
         this.resetUpload();
         return;
       }
-      this.failUpload(error);
+      this.resetUpload();
+      this.uploadError = uploadErrorMessage(error);
     }
   }
 
@@ -256,127 +333,157 @@ export default class NpnVimeoUpload extends Component {
       class="npn-vimeo-upload-modal"
     >
       <:body>
-        <Form
-          @data={{this.formData}}
-          @onSubmit={{this.handleSubmit}}
-          @validate={{this.validateUpload}}
-          @onRegisterApi={{this.registerApi}}
-          as |form|
+        <form
+          class="npn-vimeo-upload"
+          {{on "submit" this.submit}}
         >
-          <form.Field
-            @name="video"
-            @title={{t "details.video"}}
-            @type="custom"
-            @format="full"
-            @validation="required"
-            @helpText={{t "upload.size_help" max=this.maxSizeLabel}}
-            as |field|
-          >
-            <field.Control>
+          {{#if this.file}}
+            <div
+              class={{concatClass
+                "npn-vimeo-upload__file"
+                (if this.isDragging "is-dragging")
+              }}
+            >
+              <div class="npn-vimeo-upload__file-row">
+                {{icon "file-video" class="npn-vimeo-upload__file-icon"}}
+                <div class="npn-vimeo-upload__file-text">
+                  <span class="npn-vimeo-upload__file-name">
+                    {{this.file.name}}
+                  </span>
+                  <span class="npn-vimeo-upload__file-meta">
+                    {{#if this.isUploading}}
+                      {{#if this.isPaused}}
+                        {{t "status.paused"}}
+                        ·
+                      {{/if}}
+                      {{this.progressLabel}}
+                    {{else if this.isProcessing}}
+                      {{t "status.transcoding"}}
+                    {{else}}
+                      {{this.fileSizeLabel}}
+                    {{/if}}
+                  </span>
+                </div>
+                {{#unless this.isBusy}}
+                  <DButton
+                    @action={{this.removeFile}}
+                    @icon="xmark"
+                    @title="npn_vimeo_upload.upload.remove"
+                    class="btn-flat btn-small npn-vimeo-upload__remove"
+                  />
+                {{/unless}}
+              </div>
+
+              {{#if this.isUploading}}
+                <progress
+                  class="npn-vimeo-upload__progress"
+                  max="100"
+                  value={{this.uploadProgress}}
+                ></progress>
+              {{else if this.isProcessing}}
+                <progress
+                  class="npn-vimeo-upload__progress is-indeterminate"
+                ></progress>
+              {{/if}}
+            </div>
+          {{else}}
+            <label
+              class={{concatClass
+                "npn-vimeo-upload__dropzone"
+                (if this.isDragging "is-dragging")
+              }}
+            >
+              {{icon "npn-video-upload" class="npn-vimeo-upload__drop-icon"}}
+              <span class="npn-vimeo-upload__drop-title">
+                {{t "upload.drop_title"}}
+              </span>
+              <span class="npn-vimeo-upload__drop-browse">
+                {{t "upload.drop_browse"}}
+              </span>
+              <span class="npn-vimeo-upload__drop-hint">
+                {{t "upload.size_help" max=this.maxSizeLabel}}
+              </span>
               <input
                 type="file"
-                id={{field.id}}
-                accept="video/mp4,video/x-m4v,video/*"
-                disabled={{this.uploadDisabled}}
-                onchange={{this.validateVideoFile}}
+                accept="video/*"
+                class="npn-vimeo-upload__input"
+                {{on "change" this.onFileInput}}
               />
-            </field.Control>
-          </form.Field>
+            </label>
+          {{/if}}
 
-          <form.Field
-            @name="title"
-            @title={{t "details.title"}}
-            @validation="required"
-            @type="input"
-            @format="full"
-            as |field|
-          >
-            <field.Control
-              id="npn-vimeo-title"
-              disabled={{this.uploadDisabled}}
-              placeholder={{t "details.title"}}
-            />
-          </form.Field>
-        </Form>
+          {{#if this.fileError}}
+            <p class="npn-vimeo-upload__error" role="alert">
+              {{icon "circle-exclamation"}}
+              {{this.fileError}}
+            </p>
+          {{/if}}
+
+          {{#if this.file}}
+            <div class="npn-vimeo-upload__field">
+              <label for="npn-vimeo-title">{{t "details.title"}}</label>
+              <input
+                id="npn-vimeo-title"
+                type="text"
+                maxlength={{TITLE_MAX_LENGTH}}
+                value={{this.title}}
+                disabled={{this.isBusy}}
+                {{on "input" this.onTitleInput}}
+              />
+            </div>
+          {{/if}}
+
+          {{#if this.uploadError}}
+            <p class="npn-vimeo-upload__error" role="alert">
+              {{icon "circle-exclamation"}}
+              {{t "status.error"}}:
+              {{this.uploadError}}
+            </p>
+          {{/if}}
+        </form>
       </:body>
 
       <:footer>
-        <DButton
-          @action={{this.submitUpload}}
-          @icon="upload"
-          @translatedLabel={{t "upload.submit"}}
-          @disabled={{this.uploadDisabled}}
-          class="btn-primary npn-vimeo-upload-submit"
-        />
-
-        {{#if this.hasStatus}}
-          <div class="npn-vimeo-upload-status">
-            {{#if this.isCancelling}}
-              <div class="npn-vimeo-upload-status-line">
-                <span>{{t "status.cancelling"}}</span>
-                <div class="spinner"></div>
-              </div>
+        {{#if this.isBusy}}
+          {{#if this.isUploading}}
+            {{#if this.isPaused}}
+              <DButton
+                @action={{this.resumeUpload}}
+                @icon="play"
+                @label="npn_vimeo_upload.upload.resume"
+                class="btn-primary"
+              />
             {{else}}
-              {{#if this.isUploading}}
-                <div class="npn-vimeo-upload-status-line">
-                  <span>
-                    {{#if this.isPaused}}
-                      {{t "status.paused"}}
-                    {{else}}
-                      {{t "status.uploading"}}
-                    {{/if}}
-                    {{this.uploadProgress}}%
-                  </span>
-                  <div class="npn-vimeo-upload-controls">
-                    {{#if this.isPaused}}
-                      <DButton
-                        @action={{this.resumeUpload}}
-                        @icon="play"
-                        @translatedLabel={{t "upload.resume"}}
-                        class="btn-flat"
-                      />
-                    {{else}}
-                      <DButton
-                        @action={{this.pauseUpload}}
-                        @icon="pause"
-                        @translatedLabel={{t "upload.pause"}}
-                        class="btn-flat"
-                      />
-                    {{/if}}
-                    <DButton
-                      @action={{this.cancelUpload}}
-                      @icon="xmark"
-                      @translatedLabel={{t "upload.cancel"}}
-                      class="btn-flat"
-                    />
-                  </div>
-                </div>
-              {{/if}}
-
-              {{#if this.isProcessing}}
-                <div class="npn-vimeo-upload-status-line">
-                  <span>{{t "status.transcoding"}}</span>
-                  <div class="spinner"></div>
-                  <div class="npn-vimeo-upload-controls">
-                    <DButton
-                      @action={{this.cancelUpload}}
-                      @icon="xmark"
-                      @translatedLabel={{t "upload.cancel"}}
-                      class="btn-flat"
-                    />
-                  </div>
-                </div>
-              {{/if}}
-
-              {{#if this.uploadError}}
-                <div
-                  class="npn-vimeo-upload-status-line npn-vimeo-upload-error"
-                >
-                  <span>{{t "status.error"}}: {{this.uploadError}}</span>
-                </div>
-              {{/if}}
+              <DButton
+                @action={{this.pauseUpload}}
+                @icon="pause"
+                @label="npn_vimeo_upload.upload.pause"
+              />
             {{/if}}
-          </div>
+          {{/if}}
+          <DButton
+            @action={{this.cancelUpload}}
+            @label={{if
+              this.isCancelling
+              "npn_vimeo_upload.status.cancelling"
+              "npn_vimeo_upload.upload.cancel"
+            }}
+            @disabled={{this.isCancelling}}
+            class="btn-flat npn-vimeo-upload__cancel"
+          />
+        {{else}}
+          <DButton
+            @action={{this.submit}}
+            @icon="upload"
+            @label="npn_vimeo_upload.upload.submit"
+            @disabled={{if this.canSubmit false true}}
+            class="btn-primary npn-vimeo-upload-submit"
+          />
+          <DButton
+            @action={{@closeModal}}
+            @label="npn_vimeo_upload.upload.close"
+            class="btn-flat"
+          />
         {{/if}}
       </:footer>
     </DModal>

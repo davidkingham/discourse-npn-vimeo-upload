@@ -1,47 +1,261 @@
-.d-icon-npn-video-upload {
-  font-size: var(--font-up-2);
-  top: 1px;
+.npn-vimeo-upload-modal {
+  .d-modal__container {
+    max-width: 34em;
+  }
+
+  .d-modal__footer {
+    gap: 0.5em;
+  }
 }
 
-.npn-vimeo-upload-modal {
-  .d-modal__footer {
-    gap: 1rem;
-  }
+.npn-vimeo-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
 
-  @keyframes npn-vimeo-fade-in {
-    from {
-      opacity: 0;
-      transform: translateY(5px);
+  // Empty state: one large target. Matches the NPN submissions drop zone.
+  &__dropzone {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35em;
+    min-height: 11em;
+    padding: 2em 1em;
+    border: 2px dashed var(--primary-low);
+    border-radius: var(--d-border-radius-large, var(--d-border-radius));
+    background: var(--primary-very-low);
+    color: var(--primary-medium);
+    text-align: center;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      color 0.15s ease;
+
+    // Keyboard focus (the modal focuses the hidden input on open) gets a
+    // ring, not the hover fill, so hover and dragging still stand out.
+    &:has(.npn-vimeo-upload__input:focus-visible) {
+      outline: 2px solid var(--tertiary);
+      outline-offset: 2px;
     }
 
-    to {
-      opacity: 1;
-      transform: translateY(0);
+    &:hover {
+      border-color: var(--tertiary);
+      background: var(--tertiary-very-low);
+      color: var(--primary);
+
+      .npn-vimeo-upload__drop-icon {
+        color: var(--tertiary);
+        opacity: 1;
+      }
+
+      .npn-vimeo-upload__drop-browse {
+        text-decoration-color: var(--tertiary);
+      }
+    }
+
+    &.is-dragging {
+      border-color: var(--tertiary);
+      border-style: solid;
+      background: var(--tertiary-low);
+      color: var(--primary);
+
+      .npn-vimeo-upload__drop-icon {
+        color: var(--tertiary);
+        opacity: 1;
+        transform: translateY(-2px);
+      }
     }
   }
 
-  .npn-vimeo-upload-status {
+  &__drop-icon.d-icon {
+    font-size: 2.5em;
+    margin-bottom: 0.25em;
+    color: var(--primary-medium);
+    opacity: 0.7;
+    transition:
+      color 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  &__drop-title {
+    font-size: var(--font-up-1);
+    font-weight: 600;
+    color: var(--primary);
+  }
+
+  &__drop-browse {
+    text-decoration: underline;
+    text-decoration-color: var(--primary-low);
+    text-underline-offset: 2px;
+  }
+
+  &__drop-hint {
+    margin-top: 0.5em;
+    font-size: var(--font-down-1);
+    color: var(--primary-medium);
+  }
+
+  // Visually hidden but focusable; the wrapping label opens the picker.
+  &__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  // Selected / uploading state.
+  &__file {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75em;
+    padding: 0.85em 1em;
+    border: 1px solid var(--primary-low);
+    border-radius: var(--d-border-radius-large, var(--d-border-radius));
+    background: var(--primary-very-low);
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease;
+
+    &.is-dragging {
+      border-color: var(--tertiary);
+      background: var(--tertiary-very-low);
+    }
+  }
+
+  &__file-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+    min-width: 0;
+  }
+
+  &__file-icon.d-icon {
+    flex: 0 0 auto;
+    font-size: 1.75em;
+    color: var(--tertiary);
+  }
+
+  &__file-text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__file-name {
+    overflow: hidden;
+    font-weight: 600;
+    color: var(--primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__file-meta {
+    font-size: var(--font-down-1);
+    color: var(--primary-medium);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__remove {
+    flex: 0 0 auto;
+  }
+
+  &__progress {
+    width: 100%;
+    height: 0.5em;
+    border: 0;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--primary-low);
+    appearance: none;
+
+    &::-webkit-progress-bar {
+      background: var(--primary-low);
+      border-radius: 999px;
+    }
+
+    &::-webkit-progress-value {
+      background: var(--tertiary);
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    &::-moz-progress-bar {
+      background: var(--tertiary);
+      border-radius: 999px;
+    }
+
+    // Processing: Vimeo gives no percentage, so show a moving stripe.
+    &.is-indeterminate {
+      position: relative;
+      background: linear-gradient(
+          90deg,
+          transparent 0%,
+          var(--tertiary) 50%,
+          transparent 100%
+        )
+        no-repeat,
+        var(--primary-low);
+      background-size: 40% 100%;
+      animation: npn-vimeo-indeterminate 1.4s ease-in-out infinite;
+
+      &::-webkit-progress-bar {
+        background: transparent;
+      }
+
+      &::-moz-progress-bar {
+        background: transparent;
+      }
+    }
+  }
+
+  &__field {
     display: flex;
     flex-direction: column;
     gap: 0.35em;
+
+    label {
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    input {
+      width: 100%;
+      margin: 0;
+    }
   }
 
-  .npn-vimeo-upload-status-line {
-    animation: npn-vimeo-fade-in 0.2s ease-out;
-    display: inline-flex;
-    align-items: center;
+  &__error {
+    display: flex;
+    align-items: baseline;
     gap: 0.4em;
-  }
-
-  .npn-vimeo-upload-error {
+    margin: 0;
     color: var(--danger);
   }
+}
 
-  .spinner {
-    height: 10px;
-    width: 10px;
-    margin: 0;
-    display: inline-block;
-    flex: 0 0 auto;
+@keyframes npn-vimeo-indeterminate {
+  from {
+    background-position:
+      -60% 0,
+      0 0;
+  }
+
+  to {
+    background-position:
+      160% 0,
+      0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .npn-vimeo-upload__progress.is-indeterminate {
+    animation: none;
+    background: var(--tertiary-low);
   }
 }
