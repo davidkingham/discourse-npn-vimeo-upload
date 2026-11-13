@@ -18,18 +18,16 @@ plugins:
   npn_vimeo_upload_daily_limit:
     default: 10
     min: 1
-  npn_vimeo_upload_default_view_privacy:
+  npn_vimeo_upload_view_privacy:
     default: anybody
     type: enum
-    client: true
     choices:
       - anybody
       - unlisted
       - disable
-  npn_vimeo_upload_default_embed_privacy:
+  npn_vimeo_upload_embed_privacy:
     default: public
     type: enum
-    client: true
     choices:
       - public
       - private

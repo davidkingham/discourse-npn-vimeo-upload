@@ -4,8 +4,6 @@ module ::NpnVimeoUpload
   class UploadsController < ::ApplicationController
     requires_plugin PLUGIN_NAME
 
-    VIEW_PRIVACY = %w[anybody unlisted disable].freeze
-    EMBED_PRIVACY = %w[public private].freeze
     STORE_KEY_PREFIX = "video:"
     DELETE_WINDOW = 1.day
 
@@ -39,18 +37,15 @@ module ::NpnVimeoUpload
         ).performed!
       end
 
-      view = VIEW_PRIVACY.include?(params[:view_privacy]) ? params[:view_privacy] : "anybody"
-      embed = EMBED_PRIVACY.include?(params[:embed_privacy]) ? params[:embed_privacy] : "public"
       name = params[:name].to_s.strip.presence || "Untitled"
-      description = params[:description].to_s.strip
 
       result =
         vimeo.create_upload(
           size: size,
           name: name.truncate(128),
-          description: "#{description.truncate(4000)}\nby @#{current_user.username}".strip,
-          view: view,
-          embed: embed,
+          description: "Uploaded by @#{current_user.username}",
+          view: SiteSetting.npn_vimeo_upload_view_privacy,
+          embed: SiteSetting.npn_vimeo_upload_embed_privacy,
         )
 
       uri = result["uri"].to_s
@@ -134,15 +129,8 @@ module ::NpnVimeoUpload
       if error.status.to_i.zero? || error.status >= 500
         render_json_error(I18n.t("npn_vimeo_upload.errors.vimeo_unreachable"), status: 502)
       else
-        # Vimeo's 4xx messages (e.g. privacy option not on this plan) are
-        # useful to the member and never contain the token.
-        render_json_error(
-          I18n.t("npn_vimeo_upload.errors.vimeo_failed", message: error.message),
-          status: 422,
-          extras: {
-            vimeo_error: error.body&.slice("error_code", "invalid_parameters"),
-          },
-        )
+        # Vimeo's own message is in the log above; members get a plain one.
+        render_json_error(I18n.t("npn_vimeo_upload.errors.vimeo_failed"), status: 422)
       end
     end
   end

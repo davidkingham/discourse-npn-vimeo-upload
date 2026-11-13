@@ -55,9 +55,6 @@ export default class VimeoUploadClient extends ResumableUploadClient {
         data: {
           size: this.file.size,
           name: this.metadata.name,
-          description: this.metadata.description,
-          view_privacy: this.metadata.viewPrivacy,
-          embed_privacy: this.metadata.embedPrivacy,
         },
       });
     } catch (error) {

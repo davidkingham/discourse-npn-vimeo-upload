@@ -22,7 +22,10 @@ RSpec.describe "NPN Vimeo upload" do
 
     expect(page).to have_css(".npn-vimeo-upload-modal")
     expect(page).to have_css(".npn-vimeo-upload-submit")
-    expect(page).to have_select("npn-vimeo-view-privacy", selected: "Public")
+    modal = find(".npn-vimeo-upload-modal")
+    expect(modal).to have_field("npn-vimeo-title")
+    expect(modal).to have_no_css("select")
+    expect(modal).to have_no_text(/vimeo|privacy/i)
     expect(page.html).not_to include("secret-vimeo-token")
   end
 

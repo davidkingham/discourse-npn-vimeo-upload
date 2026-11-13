@@ -59,13 +59,7 @@ RSpec.describe NpnVimeoUpload::UploadsController do
       stub = stub_create
       sign_in(member)
 
-      post "/npn-vimeo/uploads.json",
-           params: {
-             size: 100,
-             name: "Aspens",
-             description: "Fall",
-             view_privacy: "unlisted",
-           }
+      post "/npn-vimeo/uploads.json", params: { size: 100, name: "Aspens" }
 
       expect(response.status).to eq(200)
       expect(response.parsed_body).to eq(
@@ -77,14 +71,16 @@ RSpec.describe NpnVimeoUpload::UploadsController do
       expect(
         stub.with do |req|
           body = JSON.parse(req.body)
-          body["upload"] == { "approach" => "tus", "size" => 100 } &&
-            body["description"] == "Fall\nby @#{member.username}" &&
-            body["privacy"] == { "view" => "unlisted", "embed" => "public" }
+          body["upload"] == { "approach" => "tus", "size" => 100 } && body["name"] == "Aspens" &&
+            body["description"] == "Uploaded by @#{member.username}" &&
+            body["privacy"] == { "view" => "anybody", "embed" => "public" }
         end,
       ).to have_been_requested
     end
 
-    it "ignores privacy values outside the allowed list" do
+    it "uses the admin privacy settings and ignores any sent by the browser" do
+      SiteSetting.npn_vimeo_upload_view_privacy = "unlisted"
+      SiteSetting.npn_vimeo_upload_embed_privacy = "private"
       stub = stub_create
       sign_in(member)
       post "/npn-vimeo/uploads.json",
@@ -97,7 +93,7 @@ RSpec.describe NpnVimeoUpload::UploadsController do
       expect(response.status).to eq(200)
       expect(
         stub.with do |req|
-          JSON.parse(req.body)["privacy"] == { "view" => "anybody", "embed" => "public" }
+          JSON.parse(req.body)["privacy"] == { "view" => "unlisted", "embed" => "private" }
         end,
       ).to have_been_requested
     end
@@ -121,7 +117,7 @@ RSpec.describe NpnVimeoUpload::UploadsController do
       expect(response.status).to eq(429)
     end
 
-    it "passes Vimeo 4xx messages through without the token" do
+    it "gives members a plain message when Vimeo rejects the request" do
       stub_create(
         status: 400,
         body: {
@@ -134,7 +130,10 @@ RSpec.describe NpnVimeoUpload::UploadsController do
       post "/npn-vimeo/uploads.json", params: { size: 100 }
 
       expect(response.status).to eq(422)
-      expect(response.parsed_body["errors"].first).to include("Privacy not allowed")
+      expect(response.parsed_body["errors"].first).to eq(
+        I18n.t("npn_vimeo_upload.errors.vimeo_failed"),
+      )
+      expect(response.body).not_to include("Privacy not allowed")
       expect(response.body).not_to include(token)
     end
 

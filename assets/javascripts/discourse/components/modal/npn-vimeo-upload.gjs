@@ -17,13 +17,7 @@ import {
 import VimeoUploadClient from "../../lib/npn-vimeo-upload/vimeo-client";
 
 const STATUS_POLLING_INTERVAL_MILLIS = 10000;
-const FORM_FIELDS = [
-  "title",
-  "description",
-  "video",
-  "viewPrivacy",
-  "embedPrivacy",
-];
+const FORM_FIELDS = ["title", "video"];
 
 function t(key, opts) {
   return i18n(`npn_vimeo_upload.${key}`, opts);
@@ -44,9 +38,6 @@ export default class NpnVimeoUpload extends Component {
   uploader = null;
   cancelRequested = false;
 
-  viewPrivacy = this.siteSettings.npn_vimeo_upload_default_view_privacy;
-  embedPrivacy = this.siteSettings.npn_vimeo_upload_default_embed_privacy;
-
   @cached
   get formData() {
     return getProperties(this, ...FORM_FIELDS);
@@ -54,6 +45,11 @@ export default class NpnVimeoUpload extends Component {
 
   get maxSizeMb() {
     return this.siteSettings.npn_vimeo_upload_max_size_mb;
+  }
+
+  get maxSizeLabel() {
+    const mb = this.maxSizeMb;
+    return mb >= 1024 && mb % 1024 === 0 ? `${mb / 1024} GB` : `${mb} MB`;
   }
 
   get hasStatus() {
@@ -84,7 +80,7 @@ export default class NpnVimeoUpload extends Component {
       return t("validation.video.invalid");
     }
     if (file.size > this.maxSizeMb * 1024 * 1024) {
-      return t("validation.video.too_large", { max_mb: this.maxSizeMb });
+      return t("validation.video.too_large", { max: this.maxSizeLabel });
     }
     return null;
   }
@@ -214,12 +210,7 @@ export default class NpnVimeoUpload extends Component {
 
     const uploader = new VimeoUploadClient({
       file: data.video,
-      metadata: {
-        name: data.title,
-        description: data.description ?? "",
-        viewPrivacy: data.viewPrivacy,
-        embedPrivacy: data.embedPrivacy,
-      },
+      metadata: { name: data.title },
       onProgress: (progress) => this.updateProgress(progress),
     });
     this.uploader = uploader;
@@ -274,11 +265,11 @@ export default class NpnVimeoUpload extends Component {
         >
           <form.Field
             @name="video"
-            @title={{t "upload.video"}}
+            @title={{t "details.video"}}
             @type="custom"
             @format="full"
             @validation="required"
-            @helpText={{t "upload.size_help" max_mb=this.maxSizeMb}}
+            @helpText={{t "upload.size_help" max=this.maxSizeLabel}}
             as |field|
           >
             <field.Control>
@@ -306,74 +297,14 @@ export default class NpnVimeoUpload extends Component {
               placeholder={{t "details.title"}}
             />
           </form.Field>
-
-          <form.Field
-            @name="description"
-            @title={{t "details.description"}}
-            @type="input"
-            @format="full"
-            as |field|
-          >
-            <field.Control
-              id="npn-vimeo-description"
-              disabled={{this.uploadDisabled}}
-              placeholder={{t "details.description"}}
-            />
-          </form.Field>
-
-          <form.Field
-            @name="viewPrivacy"
-            @title={{t "details.view_privacy"}}
-            @helpText={{t "details.view_privacy_help"}}
-            @validation="required"
-            @type="select"
-            as |field|
-          >
-            <field.Control
-              id="npn-vimeo-view-privacy"
-              disabled={{this.uploadDisabled}}
-              as |select|
-            >
-              <select.Option @value="anybody">
-                {{t "details.view.anybody"}}
-              </select.Option>
-              <select.Option @value="unlisted">
-                {{t "details.view.unlisted"}}
-              </select.Option>
-              <select.Option @value="disable">
-                {{t "details.view.disable"}}
-              </select.Option>
-            </field.Control>
-          </form.Field>
-
-          <form.Field
-            @name="embedPrivacy"
-            @title={{t "details.embed_privacy"}}
-            @validation="required"
-            @type="select"
-            as |field|
-          >
-            <field.Control
-              id="npn-vimeo-embed-privacy"
-              disabled={{this.uploadDisabled}}
-              as |select|
-            >
-              <select.Option @value="public">
-                {{t "details.embed.public"}}
-              </select.Option>
-              <select.Option @value="private">
-                {{t "details.embed.private"}}
-              </select.Option>
-            </field.Control>
-          </form.Field>
         </Form>
       </:body>
 
       <:footer>
         <DButton
           @action={{this.submitUpload}}
-          @icon="fab-vimeo-v"
-          @translatedLabel={{t "upload.vimeo"}}
+          @icon="upload"
+          @translatedLabel={{t "upload.submit"}}
           @disabled={{this.uploadDisabled}}
           class="btn-primary npn-vimeo-upload-submit"
         />

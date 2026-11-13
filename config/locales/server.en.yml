@@ -5,12 +5,11 @@ en:
     npn_vimeo_upload_allowed_groups: "Groups that see the upload button and may upload. Leave empty to allow no one."
     npn_vimeo_upload_max_size_mb: "Largest video a member can upload, in MB."
     npn_vimeo_upload_daily_limit: "Maximum Vimeo uploads per member per day (admins are exempt)."
-    npn_vimeo_upload_default_view_privacy: "Default Vimeo view privacy in the upload form. Unlisted and Hide from Vimeo need a paid Vimeo plan."
-    npn_vimeo_upload_default_embed_privacy: "Default Vimeo embed privacy in the upload form."
+    npn_vimeo_upload_view_privacy: "Who can watch uploaded videos on Vimeo. Members never see this. Unlisted and Hide from Vimeo need a paid Vimeo plan."
+    npn_vimeo_upload_embed_privacy: "Whether uploaded videos can be embedded outside NPN. Members never see this."
   npn_vimeo_upload:
     errors:
-      not_configured: "Vimeo uploads are not configured."
-      too_large: "That video is larger than the %{max_mb} MB limit."
-      invalid_size: "Invalid file size."
-      vimeo_failed: "Vimeo rejected the request: %{message}"
-      vimeo_unreachable: "Could not reach Vimeo. Please try again."
+      not_configured: "Video uploads aren't set up yet. Please let staff know."
+      too_large: "That video is too large. The limit is %{max_mb} MB."
+      vimeo_failed: "The upload couldn't be started. Please try again, or let staff know if it keeps happening."
+      vimeo_unreachable: "The video service isn't responding. Please try again in a few minutes."

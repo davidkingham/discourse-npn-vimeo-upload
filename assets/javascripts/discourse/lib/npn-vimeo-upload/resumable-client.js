@@ -213,12 +213,13 @@ export default class ResumableUploadClient {
     fallbackMessage,
     translationKey = "errors.upload_request_failed"
   ) {
-    const error = xhr.responseText
-      ? new Error(xhr.responseText)
-      : new UploadVideoError(
-          translationKey,
-          fallbackMessage || `HTTP ${xhr.status}`
-        );
+    // Members get a plain message; Vimeo's raw response stays in details
+    // for debugging.
+    const error = new UploadVideoError(
+      translationKey,
+      fallbackMessage || `HTTP ${xhr.status}`,
+      { details: { responseText: xhr.responseText } }
+    );
 
     error.status = xhr.status;
     error.xhr = xhr;

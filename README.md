@@ -12,6 +12,7 @@ and the Vimeo calls that need the token moved to the server.
 ## How it works
 
 1. A member clicks the video button in the composer, picks a file, and gives it a title.
+   That's all they see: nothing about Vimeo or privacy.
 2. The browser asks the plugin to start an upload (`POST /npn-vimeo/uploads`). The plugin
    checks that the member is in an allowed group, that the file is under the size limit, and
    that the member hasn't hit the daily limit. It then creates the video on Vimeo with NPN's
@@ -36,8 +37,8 @@ and the Vimeo calls that need the token moved to the server.
    - `npn_vimeo_upload_allowed_groups`: who sees the button and may upload (empty = no one)
    - `npn_vimeo_upload_max_size_mb` (default 5120) and `npn_vimeo_upload_daily_limit`
      (default 10, admins exempt)
-   - `npn_vimeo_upload_default_view_privacy` / `_embed_privacy`: the defaults in the form.
-     Unlisted and Hide from Vimeo need a paid Vimeo plan.
+   - `npn_vimeo_upload_view_privacy` / `_embed_privacy`: privacy for every uploaded video.
+     Members never see these. Unlisted and Hide from Vimeo need a paid Vimeo plan.
    - `npn_vimeo_upload_enabled`: on
 
 If you installed the old Video Upload theme component, remove it so there aren't two video
